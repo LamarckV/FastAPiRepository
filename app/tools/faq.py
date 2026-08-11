@@ -6,7 +6,6 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
-load_dotenv()
 
 embeddings = GoogleGenerativeAIEmbeddings(
     model="gemini-embedding-2-preview",

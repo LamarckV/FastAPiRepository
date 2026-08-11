@@ -20,7 +20,6 @@ from tools.__prompts__ import (
 )
 from tools.__guardRail__ import anonimizar_entrada, guardrail_entrada, guardrail_saida
 from langchain_core.messages import RemoveMessage
-load_dotenv()
 
 # =============================================================================
 # LLMs
@@ -452,18 +451,3 @@ def executar_fluxo_assessor(pergunta_usuario: str, session_id: str) -> str:
 
     return estado_final["messages"][-1]
 
-
-if __name__ == '__main__':
-    while True:
-        try:
-            user_input = input("> ")
-            if user_input.lower() in ("sair", "end", "fim", "tchau", "bye"):
-                print("Encerrando a conversa.")
-                break
-
-            resposta = executar_fluxo_assessor(pergunta_usuario=user_input, session_id="id_usuario_mas_agora_não_importa")
-            print(resposta)
-
-        except Exception as e:
-            print("Erro ao consumir a API:", e)
-            continue

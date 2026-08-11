@@ -7,7 +7,6 @@ from pydantic import BaseModel, Field
 import unicodedata
 from tools.__faqTools__ import search_faq
 
-load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")  
 
