@@ -1,17 +1,10 @@
-import os
-from dotenv import load_dotenv
-import psycopg2
 from typing import List, Optional
 from langchain.tools import tool
 from pydantic import BaseModel, Field
 import unicodedata
-from tools.__faqTools__ import search_faq
+from app.tools.db import get_conn
 
-
-DATABASE_URL = os.getenv("DATABASE_URL")  
-
-def get_conn():
-    return psycopg2.connect(DATABASE_URL)
+get_conn()
 
 
 class AddTransactionArgs(BaseModel):

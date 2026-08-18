@@ -4,17 +4,11 @@ Verificações de segurança e compliance do assessor financeiro.
 ENTRADA  → anonimizar → checar injeção → checar dados internos → classificar (LLM)
 SAÍDA    → redigir PII → desanonimizar → revisar compliance (LLM)
 """
-import os
+
 import re
 import uuid
-from dotenv import load_dotenv
-from langchain_groq import ChatGroq
+from app.llm import llmGuard
 
-llm = ChatGroq(
-    model="llama-3.3-70b-versatile", 
-    temperature=0.0, 
-    api_key=os.getenv("groqKey")
-)
 
 # ==============================================================================
 # PII — padrões usados tanto na entrada quanto na saída
@@ -136,7 +130,7 @@ def guardrail_entrada(mensagem_anonimizada):
             return _bloquear("acesso_dados_internos", "Não tenho como compartilhar informações internas do sistema.")
 
     # 3. Classificação semântica via LLM (ofensivo, perigoso, ilícito, político, indicação)
-    resposta = llm.invoke(_PROMPT_CLASSIFICADOR.format(mensagem=mensagem_anonimizada)).content
+    resposta = llmGuard.invoke(_PROMPT_CLASSIFICADOR.format(mensagem=mensagem_anonimizada)).content
 
     categoria = "APROVADO"
     for linha in resposta.splitlines():
@@ -181,7 +175,7 @@ def guardrail_saida(resposta, mapa_pii, restaurar_pii=False):
     resposta = desanonimizar_saida(resposta, mapa_pii, restaurar=restaurar_pii)
 
     # 3. Revisão de compliance financeiro
-    saida = llm.invoke(_PROMPT_COMPLIANCE.format(resposta=resposta)).content.strip()
+    saida = llmGuard.invoke(_PROMPT_COMPLIANCE.format(resposta=resposta)).content.strip()
     if "RESPOSTA:" in saida:
         resposta = saida.split("RESPOSTA:", 1)[1].strip() or resposta
 

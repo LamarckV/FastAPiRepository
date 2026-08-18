@@ -1,18 +1,17 @@
-import os
-from dotenv import load_dotenv
 from langchain.tools import tool
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from app.config import GEMINI_API_KEY, FAQ_PDF_PATH
 
 
 embeddings = GoogleGenerativeAIEmbeddings(
     model="gemini-embedding-2-preview",
-    google_api_key=os.getenv("GEMINI_API_KEY")
+    google_api_key=GEMINI_API_KEY
 )
 
-PDF_PATH = os.getenv("PDF_PATH")
+PDF_PATH = FAQ_PDF_PATH
 loader = PyPDFLoader(PDF_PATH)
 docs = loader.load()
 
