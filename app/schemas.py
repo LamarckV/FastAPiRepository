@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field
 class ChatRequest(BaseModel):
     """What the server send on POST /chat."""
     session_id: str = Field(..., examples=["id_user"])
-    question: str = Field(..., min_length=1, examples=["Gastei 50 reais no mercado"], alias="pergunta")
+    question: str = Field(..., min_length=1, examples=["Gastei 50 reais no mercado"])
 
 class ChatResponse(BaseModel):
     """What the API will responde on POST /chat."""

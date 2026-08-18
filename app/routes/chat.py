@@ -7,5 +7,12 @@ router = APIRouter(tags=["chat"])
 @router.post("/chat", response_model=ChatResponse)
 def chat(requisition: ChatRequest) -> ChatResponse:
     """Recieve a message from the user and return a response from the AI model."""
-    result = executar_fluxo_assessor(requisition.question, requisition.session_id)
-    return ChatResponse(response=result)
+    question = requisition.question
+    session_id = requisition.session_id
+
+    result = executar_fluxo_assessor(question, session_id)
+
+    lastLine = result.strip().splitlines()
+    response = lastLine[-1] if lastLine else ""
+
+    return ChatResponse(response=response)

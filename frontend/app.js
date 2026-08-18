@@ -11,7 +11,7 @@ const CHAT_ENDPOINT = `${API_BASE}/chat`;
 const thread = document.getElementById("thread");
 const threadEmpty = document.getElementById("thread-empty");
 const composer = document.getElementById("composer");
-const inputPergunta = document.getElementById("pergunta");
+const inputQuestion = document.getElementById("question");
 const botaoEnviar = document.getElementById("enviar");
 const sessionIdEl = document.getElementById("session-id");
 const resetButton = document.getElementById("reset-session");
@@ -141,12 +141,12 @@ function removerIndicadorDigitando() {
 // ============================================================
 // Textarea: auto-resize + enviar com Enter
 // ============================================================
-inputPergunta.addEventListener("input", () => {
-  inputPergunta.style.height = "auto";
-  inputPergunta.style.height = Math.min(inputPergunta.scrollHeight, 140) + "px";
+inputQuestion.addEventListener("input", () => {
+  inputQuestion.style.height = "auto";
+  inputQuestion.style.height = Math.min(inputQuestion.scrollHeight, 140) + "px";
 });
 
-inputPergunta.addEventListener("keydown", (evento) => {
+inputQuestion.addEventListener("keydown", (evento) => {
   if (evento.key === "Enter" && !evento.shiftKey) {
     evento.preventDefault();
     composer.requestSubmit();
@@ -159,16 +159,16 @@ inputPergunta.addEventListener("keydown", (evento) => {
 composer.addEventListener("submit", async (evento) => {
   evento.preventDefault();
 
-  const pergunta = inputPergunta.value.trim();
-  if (!pergunta) return;
+  const question = inputQuestion.value.trim();
+  if (!question) return;
 
-  adicionarMensagem({ tipo: "user", texto: pergunta });
-  inputPergunta.value = "";
-  inputPergunta.style.height = "auto";
+  adicionarMensagem({ tipo: "user", texto: question });
+  inputQuestion.value = "";
+  inputQuestion.style.height = "auto";
   setHint("");
 
   botaoEnviar.disabled = true;
-  inputPergunta.disabled = true;
+  inputQuestion.disabled = true;
   adicionarIndicadorDigitando();
 
   try {
@@ -176,7 +176,7 @@ composer.addEventListener("submit", async (evento) => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        pergunta: pergunta,
+        question: question,
         session_id: sessionId,
       }),
     });
@@ -194,7 +194,7 @@ composer.addEventListener("submit", async (evento) => {
 
     adicionarMensagem({
       tipo: "assistant",
-      texto: dados.resposta ?? "(resposta vazia)",
+      texto: dados.response ?? "(resposta vazia)",
       agentes: dados.agentes_chamados,
     });
   } catch (erro) {
@@ -210,10 +210,10 @@ composer.addEventListener("submit", async (evento) => {
     console.error(erro);
   } finally {
     botaoEnviar.disabled = false;
-    inputPergunta.disabled = false;
-    inputPergunta.focus();
+    inputQuestion.disabled = false;
+    inputQuestion.focus();
   }
 });
 
 // Foco inicial
-inputPergunta.focus();
+inputQuestion.focus();
