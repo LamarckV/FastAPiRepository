@@ -7,7 +7,7 @@ from app.config import GEMINI_API_KEY, GROQ_API_KEY
 # =============================================================================
 
 llmGuard = ChatGroq(
-    model="llama-3.3-70b-versatile", 
+    model="qwen/qwen3.6-27b", 
     temperature=0.0, 
     api_key=GROQ_API_KEY
 )
@@ -28,13 +28,13 @@ llm_groq = ChatGroq(
 llm = llm_gemini.with_fallbacks([llm_groq])
 
 llmRapido = ChatGroq(
-    model="llama-3.3-70b-versatile",
+    model="qwen/qwen3.6-27b",
     temperatgrowure=0,
     api_key=GROQ_API_KEY,
 )
 
 _llm_resumo = ChatGroq(
-    model="llama-3.3-70b-versatile",
+    model="qwen/qwen3.6-27b",
     temperature=0.0,
     api_key=GROQ_API_KEY
 )

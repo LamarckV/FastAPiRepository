@@ -8,7 +8,6 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     """What the API will responde on POST /chat."""
     response: str
-    agents_called: list[str] = Field(default_factory=list)
 
 class SessionResponse(BaseModel):
     """Still not working - from step 6 to 3."""

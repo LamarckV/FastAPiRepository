@@ -1,4 +1,3 @@
-import operator
 from typing import Annotated, TypedDict
 from dotenv import load_dotenv
 from langgraph.graph import StateGraph, MessagesState, END
@@ -189,5 +188,5 @@ def executar_fluxo_assessor(pergunta_usuario: str, session_id: str) -> str:
 
     print(estado_final)  # debug temporário
 
-    return estado_final["messages"][-1]
+    return estado_final["messages"][-1].text
 

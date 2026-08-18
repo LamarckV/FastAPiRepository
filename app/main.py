@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from app.routes import chat
-from app.config import validate_config
+from app.config import validate_config, FRONTEND_DIR
 
 for _problem in validate_config():
     print(f"[config] ATENTION: { _problem }")
@@ -21,3 +21,23 @@ def health_check() -> dict:
         }
 
 app.include_router(chat.router)
+
+
+app.add_middleware(
+    CORSmiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"]
+)
+
+# frontend
+
+if (FRONTEND_DIR / "index.html").exists():
+    app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=true), name="frontend")
+else:
+    @app.get("?", tags=["infra"])
+    def raiz() -> dict:
+        return{
+            "mensagem": "API do assessor no ar. o frontend ainda n foi criado"
+        }
