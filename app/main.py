@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from app.routes import chat
 from app.config import validate_config, FRONTEND_DIR
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 for _problem in validate_config():
     print(f"[config] ATENTION: { _problem }")
@@ -24,7 +26,7 @@ app.include_router(chat.router)
 
 
 app.add_middleware(
-    CORSmiddleware,
+    CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
@@ -34,7 +36,7 @@ app.add_middleware(
 # frontend
 
 if (FRONTEND_DIR / "index.html").exists():
-    app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=true), name="frontend")
+    app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
 else:
     @app.get("?", tags=["infra"])
     def raiz() -> dict:
