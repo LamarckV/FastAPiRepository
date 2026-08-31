@@ -13,7 +13,7 @@ app = FastAPI(
     version="0.1.0"
 )
 
-@app.get("/healt")
+@app.get("/health")
 def health_check() -> dict:
     """API health check endpoint. Returns a simple status message."""
     problem = validate_config()
@@ -43,3 +43,6 @@ else:
         return{
             "mensagem": "API do assessor no ar. o frontend ainda n foi criado"
         }
+
+# Compatibilidade com clientes que usavam a grafia anterior.
+app.add_api_route("/healt", health_check, methods=["GET"], include_in_schema=False)

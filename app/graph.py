@@ -87,6 +87,8 @@ def no_guardrail_entrada(estado: Estado) -> dict:
 
     if resposta_guardrail["bloqueado"]:
         return {
+            "rota": "fim",
+            "agentes": estado["agentes"] + ["guardrail_entrada"],
             "messages": [{"role": "assistant", "content": resposta_guardrail["mensagem"]}],
         }
     else:
@@ -117,8 +119,11 @@ def no_orquestrador(estado: Estado) -> dict:
             ultimo_espec = messages.content
             break
 
-    saida = orquestradorApp.invoke({"messages": estado["messages"][-1]})
-    return {"agentes": estado["agentes"] + ["orquestrador"], "messages": estado["messages"][-1]}
+    saida = orquestradorApp.invoke({"messages": [estado["messages"][-1]]})
+    return {
+        "agentes": estado["agentes"] + ["orquestrador"],
+        "messages": [saida["messages"][-1]],
+    }
 
 # Decisões
 def decidir_especialista(estado: Estado) -> str:
@@ -171,7 +176,7 @@ fluxo_agentes = grafo.compile(checkpointer=memory)
 
 # Função principal
 
-def executar_fluxo_assessor(pergunta_usuario: str, session_id: str) -> str:
+def executar_fluxo_assessor(pergunta_usuario: str, session_id: str) -> dict:
     estado_inicial = {
         "messages": [{"role": "human", "content": pergunta_usuario}],
         "agentes": [],
@@ -188,5 +193,9 @@ def executar_fluxo_assessor(pergunta_usuario: str, session_id: str) -> str:
 
     print(estado_final)  # debug temporário
 
-    return estado_final["messages"][-1].text
+    resposta = estado_final["messages"][-1].content
+    return {
+        "resposta": resposta if isinstance(resposta, str) else str(resposta),
+        "agentes_chamados": estado_final.get("agentes", []),
+    }
 

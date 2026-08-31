@@ -1,13 +1,21 @@
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
 class ChatRequest(BaseModel):
-    """What the server send on POST /chat."""
+    """Payload aceito pelo endpoint POST /chat."""
+    model_config = ConfigDict(populate_by_name=True)
+
     session_id: str = Field(..., examples=["id_user"])
-    question: str = Field(..., min_length=1, examples=["Gastei 50 reais no mercado"])
+    pergunta: str = Field(
+        ...,
+        min_length=1,
+        validation_alias=AliasChoices("pergunta", "question"),
+        examples=["Gastei 50 reais no mercado"],
+    )
 
 class ChatResponse(BaseModel):
-    """What the API will responde on POST /chat."""
-    response: str
+    """Resposta entregue ao frontend."""
+    resposta: str
+    agentes_chamados: list[str] = Field(default_factory=list)
 
 class SessionResponse(BaseModel):
     """Still not working - from step 6 to 3."""
