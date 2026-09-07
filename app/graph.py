@@ -1,4 +1,5 @@
-from typing import Annotated, TypedDict
+import re
+from typing import Annotated, Any, TypedDict
 from dotenv import load_dotenv
 from langgraph.graph import StateGraph, MessagesState, END
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -19,6 +20,35 @@ from app.prompts import (
 )
 
 routerMemory = MemorySaver()
+
+
+def extract_text(content: Any) -> str:
+    """Return only user-facing text from LangChain/provider content blocks."""
+    if isinstance(content, str):
+        text = content
+    elif isinstance(content, list):
+        parts = []
+        for block in content:
+            if isinstance(block, str):
+                parts.append(block)
+            elif isinstance(block, dict) and block.get("type") == "text":
+                block_text = block.get("text")
+                if isinstance(block_text, str):
+                    parts.append(block_text)
+            else:
+                block_text = getattr(block, "text", None)
+                if isinstance(block_text, str):
+                    parts.append(block_text)
+        text = "\n".join(parts)
+    else:
+        text = str(content) if content is not None else ""
+
+    # 1. Remove blocos <think>...</think> completos
+    text = re.sub(r"<think\b[^>]*>.*?</think>\s*", "", text, flags=re.IGNORECASE | re.DOTALL)
+    # 2. Remove blocos <think> sem tag de fechamento até o fim do texto
+    text = re.sub(r"<think\b[^>]*>.*$", "", text, flags=re.IGNORECASE | re.DOTALL)
+
+    return text.strip()
 
 # Roteador
 routerApp = create_agent(
@@ -59,7 +89,7 @@ class Estado(MessagesState):
 # Nós
 def no_roteador(estado: Estado) -> dict:
     saida = routerApp.invoke({"messages": list(estado["messages"])})
-    texto = saida["messages"][-1].text
+    texto = extract_text(saida["messages"][-1].content)
 
     if "ROUTE=" not in texto:
         return {
@@ -97,12 +127,12 @@ def no_guardrail_entrada(estado: Estado) -> dict:
             "agentes": estado["agentes"] + ["guardrail_entrada"],
             "messages": [
                 RemoveMessage(id=estado["messages"][-1].id),
-                {"role": "assistant", "content": texto_anonimizado}
+                {"role": "human", "content": texto_anonimizado}
             ],
         }
 
 def no_guardrail_saida(estado: Estado) -> dict:
-    resposta_orquestrador = estado["messages"][-1].content
+    resposta_orquestrador = extract_text(estado["messages"][-1].content)
     mapa_pii = estado["mapa_pii"]
     resposta_final = guardrail_saida(resposta_orquestrador, mapa_pii)
 
@@ -113,19 +143,23 @@ def no_guardrail_saida(estado: Estado) -> dict:
 
 
 def no_orquestrador(estado: Estado) -> dict:
-    ultimo_espec = ""
-    for messages in reversed(estado["messages"]):
-        if messages.type == "ai" and messages.content:
-            ultimo_espec = messages.content
-            break
+    last_content = estado["messages"][-1].content
 
-    saida = orquestradorApp.invoke({"messages": [estado["messages"][-1]]})
+    orquestration_prompt = (
+        "Com base na estrutura JSON do agente especialista abaixo, gere uma resposta clara, "
+        "amigável e direta para o usuário em português (br):\n\n"
+        f"{last_content}"
+    )
+
+    output = orquestradorApp.invoke({
+        "messages": [{"role": "user", "content": orquestration_prompt}]
+    })
+
     return {
         "agentes": estado["agentes"] + ["orquestrador"],
-        "messages": [saida["messages"][-1]],
+        "messages": [output["messages"][-1]],
     }
 
-# Decisões
 def decidir_especialista(estado: Estado) -> str:
     rota = estado.get("rota", "fim")
 
@@ -169,7 +203,7 @@ grafo.add_edge("financeiro", "orquestrador")
 grafo.add_edge("agenda", "orquestrador")
 grafo.add_edge("orquestrador", "guardrail_saida")
 grafo.add_edge("guardrail_saida", END)
-grafo.add_edge("faq", END)
+grafo.add_edge("faq", "guardrail_saida")
 
 memory = MemorySaver()
 fluxo_agentes = grafo.compile(checkpointer=memory)
@@ -193,9 +227,9 @@ def executar_fluxo_assessor(pergunta_usuario: str, session_id: str) -> dict:
 
     print(estado_final)  # debug temporário
 
-    resposta = estado_final["messages"][-1].content
+    resposta = extract_text(estado_final["messages"][-1].content)
     return {
-        "resposta": resposta if isinstance(resposta, str) else str(resposta),
+        "resposta": resposta,
         "agentes_chamados": estado_final.get("agentes", []),
     }
 
