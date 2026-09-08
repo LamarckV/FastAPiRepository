@@ -1,8 +1,8 @@
 from fastapi import FastAPI
-from app.routes import chat
-from app.config import validate_config, FRONTEND_DIR
+from app.routes import chat, perfil
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from app.config import validate_config, FRONTEND_DIR
 
 for _problem in validate_config():
     print(f"[config] ATENTION: { _problem }")
@@ -23,6 +23,7 @@ def health_check() -> dict:
         }
 
 app.include_router(chat.router)
+app.include_router(perfil.router)
 
 
 app.add_middleware(

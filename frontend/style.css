@@ -140,10 +140,12 @@ body {
   border-radius: 5px;
 }
 
-.header__reset {
+.header__reset,
+.header__profile {
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-muted);
+  text-decoration: none;
   background: transparent;
   border: 1px solid var(--border-soft);
   border-radius: 5px;
@@ -152,7 +154,8 @@ body {
   transition: border-color 0.15s, color 0.15s;
 }
 
-.header__reset:hover {
+.header__reset:hover,
+.header__profile:hover {
   border-color: var(--accent);
   color: var(--accent-strong);
 }

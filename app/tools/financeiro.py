@@ -450,6 +450,41 @@ def update_transaction(
         except Exception:
             pass
 
+from langchain_core.runnables import RunnableConfig
+from app.perfil import obter_perfil_mongodb, buscar_preferencias_qdrant
+
+class PerfilToolInput(BaseModel):
+    pergunta_ou_assunto: Optional[str] = Field(default=None, description="Assunto ou dúvida sobre a qual buscar preferências semânticas do perfil.")
+
+@tool("consultar_perfil_usuario", args_schema=PerfilToolInput)
+def consultar_perfil_usuario(pergunta_ou_assunto: Optional[str] = None, config: Optional[RunnableConfig] = None) -> dict:
+    """Use quando precisar ancorar conselhos financeiros na renda, no objetivo, no nível de risco ou nas restrições declaradas pelo usuário.
+
+    Args:
+        pergunta_ou_assunto: assunto ou dúvida sobre a qual buscar preferências semânticas.
+    """
+    configuravel = (config or {}).get("configurable", {})
+    user_id = configuravel.get("user_id") or configuravel.get("thread_id") or "usuario_teste"
+
+    perfil = obter_perfil_mongodb(user_id)
+    if not perfil:
+        return {
+            "status": "sem_perfil",
+            "mensagem": "O usuário ainda não possui um perfil financeiro cadastrado. Oriente-o a preencher e salvar o cadastro na tela de Perfil (ex: /perfil.html)."
+        }
+
+    preferencias_relevantes = buscar_preferencias_qdrant(user_id, query=pergunta_ou_assunto or "")
+
+    return {
+        "status": "sucesso",
+        "user_id": user_id,
+        "renda_mensal": perfil.get("renda_mensal"),
+        "objetivo": perfil.get("objetivo"),
+        "tolerancia_risco": perfil.get("tolerancia_risco"),
+        "preferencias_cadastradas": perfil.get("preferencias", ""),
+        "preferencias_relevantes": preferencias_relevantes,
+    }
 
 # Exporta a lista de tools
-TOOLS = [list_categories, add_transaction, search_transactions, saldo_total, saldo_diario, update_transaction]
+TOOLS = [list_categories, add_transaction, search_transactions, saldo_total, saldo_diario, update_transaction, consultar_perfil_usuario]
+

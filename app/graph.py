@@ -10,6 +10,7 @@ from app.tools.financeiro import TOOLS
 from app.tools.faq import search_faq
 from app.guardrail import anonimizar_entrada, guardrail_entrada, guardrail_saida
 from langchain_core.messages import RemoveMessage
+from app.memoryMongo import salvar_mensagem
 from app.llm import llm, llmRapido
 from app.prompts import (
     ROUTER_PROMPT_COMPLETO,
@@ -70,7 +71,7 @@ agendaApp = create_agent(
 )
 
 orquestradorApp = create_agent(
-    model=llmRapido,
+    model=llm,
     system_prompt=ORQUESTRADOR_PROMPT_COMPLETO,
 )
 
@@ -88,9 +89,8 @@ class Estado(MessagesState):
 
 # Nós
 def no_roteador(estado: Estado) -> dict:
-    saida = routerApp.invoke({"messages": list(estado["messages"])})
+    saida = routerApp.invoke({"messages": [estado["messages"][-1]]})
     texto = extract_text(saida["messages"][-1].content)
-
     if "ROUTE=" not in texto:
         return {
             "agentes": estado["agentes"] + ["roteador"],
@@ -143,14 +143,18 @@ def no_guardrail_saida(estado: Estado) -> dict:
 
 
 def no_orquestrador(estado: Estado) -> dict:
-    last_content = estado["messages"][-1].content
+    last_content = ""
+    for msg in reversed(estado["messages"]):
+        content = getattr(msg, "content", None)
+        if content and isinstance(content, str) and content.strip():
+            last_content = content.strip()
+            break
 
     orquestration_prompt = (
         "Com base na estrutura JSON do agente especialista abaixo, gere uma resposta clara, "
         "amigável e direta para o usuário em português (br):\n\n"
         f"{last_content}"
     )
-
     output = orquestradorApp.invoke({
         "messages": [{"role": "user", "content": orquestration_prompt}]
     })
@@ -210,26 +214,26 @@ fluxo_agentes = grafo.compile(checkpointer=memory)
 
 # Função principal
 
-def executar_fluxo_assessor(pergunta_usuario: str, session_id: str) -> dict:
+def executar_fluxo_assessor(pergunta_usuario: str, session_id: str, user_id: str = "usuario_teste") -> dict:
+    pergunta_anonimizada, mapa_pii = anonimizar_entrada(pergunta_usuario)
     estado_inicial = {
         "messages": [{"role": "human", "content": pergunta_usuario}],
         "agentes": [],
         "rota": "",
-        "mapa_pii": {},
+        "mapa_pii": mapa_pii,
     }
-    
+
     estado_final = fluxo_agentes.invoke(
         estado_inicial,
-        config={"configurable": {"thread_id": session_id}},
+        config={"configurable": {"thread_id": session_id, "user_id": user_id}},
     )
 
-    print(f"[debug] agentes chamados: {estado_final.get('agentes')}")
-
-    print(estado_final)  # debug temporário
-
     resposta = extract_text(estado_final["messages"][-1].content)
+
+    salvar_mensagem(session_id, "human", pergunta_anonimizada, user_id=user_id)
+    salvar_mensagem(session_id, "assistant", resposta, user_id=user_id)
+
     return {
         "resposta": resposta,
         "agentes_chamados": estado_final.get("agentes", []),
     }
-

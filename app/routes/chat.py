@@ -9,9 +9,9 @@ def chat(requisition: ChatRequest) -> ChatResponse:
     """Recebe uma pergunta e devolve a resposta completa do assessor."""
     pergunta = requisition.pergunta
     session_id = requisition.session_id
+    user_id = requisition.user_id
 
-    result = executar_fluxo_assessor(pergunta, session_id)
-
+    result = executar_fluxo_assessor(pergunta, session_id, user_id=user_id)
     return ChatResponse(
         resposta=result["resposta"],
         agentes_chamados=result.get("agentes_chamados", []),

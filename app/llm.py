@@ -33,7 +33,7 @@ llm = llm_gemini.with_fallbacks([llm_groq])
 llmRapido = ChatGroq(
     model="qwen/qwen3.6-27b",
     temperature=0,
-    max_tokens=400,
+    max_tokens=900,
     reasoning_format="hidden",
     api_key=GROQ_API_KEY,
 )
