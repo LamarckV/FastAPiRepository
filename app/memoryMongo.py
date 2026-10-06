@@ -37,13 +37,20 @@ from app.config import MONGODB_URI
 from app.llm import llmRapido
 from app.vectorstore import qdrant, gerar_embedding, COLLECTION_MEMORIA, EMBEDDING_DIM
 
-_mongo      = MongoClient(MONGODB_URI)
-db          = _mongo["assessor"]
-col_sessoes = db["sessoes"]
+# MongoDB Setup - Lazy Initialization
+_mongo_client = None
 
-col_sessoes.create_index("session_id")
-col_sessoes.create_index("user_id")
-col_sessoes.create_index("iniciada_em")
+def get_col_sessoes():
+    global _mongo_client
+    if _mongo_client is None:
+        _mongo_client = MongoClient(MONGODB_URI)
+        col = _mongo_client["assessor"]["sessoes"]
+        col.create_index("session_id")
+        col.create_index("user_id")
+        col.create_index("iniciada_em")
+        return col
+    return _mongo_client["assessor"]["sessoes"]
+
 
 _PROMPT_RESUMO = """\
 Você é um assistente que resume conversas de assessoria financeira e agenda.
@@ -81,6 +88,7 @@ def _doc_id_da_sessao(session_id: str) -> str | None:
     if doc_id:
         return doc_id
 
+    col_sessoes = get_col_sessoes()
     doc = col_sessoes.find_one(
         {"session_id": session_id, "resumo": {"$in": ["", None]}},
         {"_id": 1},
@@ -110,6 +118,7 @@ def iniciar_sessao(session_id: str, user_id: str = "usuario_teste") -> None:
     doc_id = str(uuid.uuid4())
     agora  = _agora()
 
+    col_sessoes = get_col_sessoes()
     col_sessoes.insert_one({
         "_id":           doc_id,
         "session_id":    session_id,
@@ -128,6 +137,7 @@ def salvar_mensagem(
     iniciar_sessao(session_id, user_id=user_id)
     doc_id = _doc_id_da_sessao(session_id)
 
+    col_sessoes = get_col_sessoes()
     col_sessoes.update_one(
         {"_id": doc_id},
         {
@@ -142,6 +152,7 @@ def encerrar_sessao(session_id: str) -> str:
     if not doc_id:
         return ""
 
+    col_sessoes = get_col_sessoes()
     doc = col_sessoes.find_one({"_id": doc_id})
 
     if not doc or not doc.get("mensagens"):
@@ -215,7 +226,7 @@ def recuperar_historico(user_id: str, busca: str = "", limite: int = 3) -> list[
 
     filtro = {"user_id": user_id, "resumo": {"$nin": ["", None]}}
     docs = (
-        col_sessoes
+        get_col_sessoes()
         .find(filtro, {"resumo": 1, "iniciada_em": 1})
         .sort("iniciada_em", -1)
         .limit(limite)
@@ -227,5 +238,6 @@ def recuperar_historico(user_id: str, busca: str = "", limite: int = 3) -> list[
     ]
 
 def recuperar_mensagens(doc_id: str) -> list[dict]:
+    col_sessoes = get_col_sessoes()
     doc = col_sessoes.find_one({"_id": doc_id}, {"mensagens": 1})
     return doc["mensagens"] if doc else []

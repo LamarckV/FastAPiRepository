@@ -36,7 +36,19 @@ def _criar_qdrant_client() -> QdrantClient:
 
     return QdrantClient(location=":memory:")
 
-qdrant = _criar_qdrant_client()
+_qdrant = None
+
+def _get_qdrant():
+    global _qdrant
+    if _qdrant is None:
+        _qdrant = _criar_qdrant_client()
+    return _qdrant
+
+def __getattr__(name):
+    if name == "qdrant":
+        return _get_qdrant()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 _embeddings = GoogleGenerativeAIEmbeddings(
     model="gemini-embedding-2-preview",
@@ -44,6 +56,8 @@ _embeddings = GoogleGenerativeAIEmbeddings(
 )
 
 def garantir_colecao(collection_name: str) -> None:
+    qdrant = _get_qdrant()
+    """Garante que a collection existe no Qdrant com a dimensão correta (768)."""
     """Garante que a collection existe no Qdrant com a dimensão correta (768)."""
     try:
         colecoes = [c.name for c in qdrant.get_collections().collections]

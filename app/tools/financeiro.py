@@ -4,7 +4,6 @@ from pydantic import BaseModel, Field
 import unicodedata
 from app.tools.db import get_conn
 
-get_conn()
 
 
 class AddTransactionArgs(BaseModel):
@@ -481,7 +480,6 @@ def consultar_perfil_usuario(pergunta_ou_assunto: Optional[str] = None, config: 
         "renda_mensal": perfil.get("renda_mensal"),
         "objetivo": perfil.get("objetivo"),
         "tolerancia_risco": perfil.get("tolerancia_risco"),
-        "preferencias_cadastradas": perfil.get("preferencias", ""),
         "preferencias_relevantes": preferencias_relevantes,
     }
 

@@ -7,11 +7,18 @@ from app.config import MONGODB_URI
 from app.schemas import PerfilRequest
 from app.vectorstore import qdrant, gerar_embedding, garantir_colecao, COLLECTION_PERFIL, EMBEDDING_DIM
 
-# MongoDB Setup
-_mongo = MongoClient(MONGODB_URI)
-db = _mongo["assessor"]
-col_perfil = db["perfil"]
-col_perfil.create_index("user_id", unique=True)
+# MongoDB Setup - Lazy Initialization
+_mongo_client = None
+
+def get_col_perfil():
+    global _mongo_client
+    if _mongo_client is None:
+        _mongo_client = MongoClient(MONGODB_URI)
+        col = _mongo_client["assessor"]["perfil"]
+        col.create_index("user_id", unique=True)
+        return col
+    return _mongo_client["assessor"]["perfil"]
+
 
 def _garantir_colecao_perfil() -> None:
     garantir_colecao(COLLECTION_PERFIL)
@@ -33,6 +40,7 @@ def salvar_perfil(dados: PerfilRequest) -> Dict[str, Any]:
         "atualizado_em": datetime.now(timezone.utc)
     }
     
+    col_perfil = get_col_perfil()
     col_perfil.update_one(
         {"user_id": user_id},
         {"$set": doc_perfil},
@@ -83,6 +91,7 @@ def salvar_perfil(dados: PerfilRequest) -> Dict[str, Any]:
 
 def obter_perfil_mongodb(user_id: str) -> Optional[Dict[str, Any]]:
     """Consulta os dados estruturados do perfil do usuário no MongoDB."""
+    col_perfil = get_col_perfil()
     return col_perfil.find_one({"user_id": user_id}, {"_id": 0})
 
 def buscar_preferencias_qdrant(user_id: str, query: str = "", limite: int = 3) -> List[str]:

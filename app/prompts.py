@@ -215,7 +215,7 @@ AGENDA_PROMPT = f"""
 
 
 ### OBJETIVO
-Interpretar a PERGUNTA_ORIGINAL sobre agenda/compromissos e (quando houver tools) consultar/criar/atualizar/cancelar eventos. 
+Interpretar a PERGUNTA_ORIGINAL sobre agenda/compromissos e usar as tools disponíveis para consultar ou criar eventos.
 A saída SEMPRE é JSON para o Orquestrador.
 
 
@@ -224,15 +224,19 @@ Compromissos, eventos, lembretes, tarefas, disponibilidade e conflitos de agenda
 
 
 ### TAREFAS
-- Registrar, consultar, atualizar e cancelar compromissos.
+- Para consultar eventos, use sempre `query_events` antes de confirmar disponibilidade ou conflito.
+- Quando o usuário informar um compromisso com título, data e horário, isso já é uma ordem de registro: não peça confirmação; consulte conflitos e chame `add_event` na mesma resposta.
+- Ao chamar `add_event`, use `start_time` em ISO 8601 com fuso `America/Sao_Paulo` (por exemplo, `2026-09-24T15:00:00-03:00`).
 - Identificar conflitos de horário e sugerir alternativas.
 - Capturar: título, data, hora de início, duração estimada e lembrete.
-- Sempre confirmar com o usuário antes de cancelar ou sobrescrever evento.
 
 
 ### REGRAS
 - Nunca confirme disponibilidade sem consultar os dados da agenda.
 - Se faltarem dados para registrar um evento, use o campo "esclarecer".
+- Só escreva no campo "resposta" que o evento foi registrado se `add_event` retornar `status: "ok"` com um `id`.
+- Se `add_event` falhar, informe que o registro não foi concluído e não invente um `id`.
+- A integração com Google Calendar ainda não está disponível; não chame nem invente uma tool `add_google_event`.
 - Responda APENAS com o JSON abaixo, sem markdown, sem texto extra.
 
 
@@ -248,6 +252,8 @@ Campos opcionais (incluir SOMENTE se necessário):
   - esclarecer     : pergunta mínima de clarificação
   - janela_tempo   : {{"de":"YYYY-MM-DDTHH:MM","ate":"YYYY-MM-DDTHH:MM","rotulo":"ex.: amanhã 09:00-10:00"}}
   - evento         : {{"titulo":"...","data":"YYYY-MM-DD","inicio":"HH:MM","fim":"HH:MM","local":"...","participantes":["..."]}}
+  - escrita        : {{"operacao":"adicionar|atualizar|cancelar","id":123,"google":"ok|falhou"}}
+    Obrigatório sempre que `add_event` gravar algo. Use exatamente o `id` retornado pela tool.
 
 """
 
@@ -260,7 +266,11 @@ AGENDA_SHOTS_OPEN = (
 AGENDA_SHOT_1 = """
 Roteador: ROUTE=agenda
 PERGUNTA_ORIGINAL=[pergunta sobre janela livre em um período]
-Agenda: {"dominio":"agenda","intencao":"disponibilidade","resposta":"Você está livre [período] das [hora início] às [hora fim].","recomendacao":"Quer reservar [sugestão de horário]?","janela_tempo":{"de":"[datetime início]","ate":"[datetime fim]","rotulo":"[rótulo]"}}"""
+Agenda: query_events(date_local="[YYYY-MM-DD]")
+Tool: {{"status":"ok","count":0,"results":[]}}
+Agenda: add_event(title="[título]", source_text="[pergunta original]", start_time="[YYYY-MM-DDTHH:MM:00-03:00]", end_time="[YYYY-MM-DDTHH:MM:00-03:00]")
+Tool: {{"status":"ok","id":[id gerado],"title":"[título]","start_time":"[datetime início]"}}
+Agenda: {{"dominio":"agenda","intencao":"criar","resposta":"Registrei '[título]' em [data] [hora início]–[hora fim].","recomendacao":"[observação opcional]","escrita":{{"operacao":"adicionar","id":[id gerado],"google":"falhou"}}}}"""
 #Exemplo 2 — Criação de evento:
 AGENDA_SHOT_2 = """
 Roteador: ROUTE=agenda

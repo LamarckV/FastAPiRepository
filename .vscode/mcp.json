@@ -1,0 +1,11 @@
+{
+  "servers": {
+    "assessor-financeiro": {
+      "type": "stdio",
+      "command": "C:\\Program Files\\Python314\\python.exe",
+      "args": [
+        "${workspaceFolder}/app/mcpServer.py"
+      ]
+    }
+  }
+}
