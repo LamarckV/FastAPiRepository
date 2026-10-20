@@ -24,6 +24,7 @@ OBRIGATORIES = {
     "MONGODB_URI":    MONGODB_URI,
 }
 
+TYPESAFE_API_KEY = os.getenv("TYPESAFE_API_KEY")
 
 def validate_config() -> list[str]:
     """Devolve a lista de problemas de configuração (vazia = tudo certo)."""

@@ -14,6 +14,7 @@ from langchain_core.messages import RemoveMessage
 from langchain_core.runnables import RunnableConfig
 from app.memoryMongo import salvar_mensagem
 from app.llm import llm, llmRapido
+from app.juiz import no_juiz
 from app.observabilidade import abrir_turno, fechar_turno, status_do_estado
 from app.prompts import (
     ROUTER_PROMPT_COMPLETO,
@@ -191,6 +192,7 @@ grafo.add_node("agenda", agendaApp)
 grafo.add_node("faq", faqApp)
 grafo.add_node("orquestrador", no_orquestrador)
 grafo.add_node("guardrail_saida", no_guardrail_saida)
+grafo.add_node("juiz", no_juiz)
 
 grafo.set_entry_point("guardrail_entrada")
 grafo.add_conditional_edges(
@@ -205,11 +207,12 @@ grafo.add_conditional_edges(
     {"financeiro": "financeiro", "agenda": "agenda", "faq": "faq", "fim": END},
 )
 
-grafo.add_edge("financeiro", "orquestrador")
-grafo.add_edge("agenda", "orquestrador")
-grafo.add_edge("orquestrador", "guardrail_saida")
-grafo.add_edge("guardrail_saida", END)
-grafo.add_edge("faq", "guardrail_saida")
+grafo.add_edge("financeiro",      "orquestrador")
+grafo.add_edge("agenda",          "orquestrador")
+grafo.add_edge("orquestrador",    "guardrail_saida")
+grafo.add_edge("guardrail_saida", "juiz")
+grafo.add_edge("faq",             "juiz")
+grafo.add_edge("juiz",            END)
 
 memory = MemorySaver()
 fluxo_agentes = grafo.compile(checkpointer=memory)
