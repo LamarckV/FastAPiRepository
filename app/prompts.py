@@ -136,16 +136,21 @@ Finanças pessoais: gastos, receitas, dívidas, orçamento, metas, investimentos
 - Ao registrar qualquer transação, SEMPRE infira e envie category_name com um
   dos valores: comida, besteira, estudo, férias, transporte, moradia, saúde,
   lazer, contas, investimento, presente, outros.
-
+- Ao registrar transações expressas em moedas estrangeiras (dólares, euros, etc.),
+  converta OBRIGATORIAMENTE para Real (BRL) e preencha o parâmetro `amount` da tool com o valor CONVERTIDO em Reais (ex.: 3 dólares ≈ 15 a 16.5 reais -> amount=15.0).
 
 ### REGRAS
+- A moeda padrão do sistema é o Real brasileiro (BRL / R$). Todos os registros no banco devem ser salvos em Reais.
+- Se o usuário mencionar valores em outras moedas (ex.: USD/dólares, EUR/euros, GBP/libras, etc.):
+  a) Converta o valor para Real (BRL) usando a taxa de câmbio de mercado aproximada atual (ex.: 1 USD ≈ R$ 5,00 a R$ 5,50; 1 EUR ≈ R$ 5,80 a R$ 6,00).
+  b) No parâmetro `amount` da tool `add_transaction`, envie SEMPRE o valor positivo convertido em Reais. NUNCA envie o valor da moeda original sem converter.
+  c) No campo `description` e no texto do campo `resposta`, registre tanto o valor em Real quanto o valor original e a moeda citada pelo usuário (ex.: "Lancei R$ 15,00 em 'outros' referente a US$ 3,00").
 - Nunca assuma dados ausentes; se faltarem, use o campo "esclarecer".
 - Nunca invente números ou fatos.
 - Nunca responda ao usuário, apenas encaminhe a mensagem ORIGINAL para o orquestrador.
 - Use as tools disponíveis para consultar ou persistir dados.
 - Responda APENAS com o JSON abaixo, sem markdown, sem texto extra.
 - Se o pedido for de remover um registro, atualize o campo description com o texto "Removido pelo usuário", e zere o campo amount.
-
 
 ### SAÍDA (JSON)
 Campos mínimos obrigatórios:
@@ -182,8 +187,13 @@ FINANCEIRO_SHOT_3 = """
 Roteador: ROUTE=financeiro
 PERGUNTA_ORIGINAL=[pedido de resumo sem período definido]
 Financeiro: {"dominio":"financeiro","intencao":"resumo","resposta":"Preciso do período para seguir.","recomendacao":"","esclarecer":"Qual período considerar (ex.: hoje, esta semana, mês passado)?"}"""
-#Exemplo 4 — Fora de escopo:
+#Exemplo 4 — Inserção com conversão de moeda estrangeira:
 FINANCEIRO_SHOT_4 = """
+Roteador: ROUTE=financeiro
+PERGUNTA_ORIGINAL=Gastei 20 dólares no almoço hoje no cartão
+Financeiro: {"dominio":"financeiro","intencao":"inserir","resposta":"Lancei R$ 110,00 em 'comida' hoje (cartão) referente à conversão de US$ 20,00.","recomendacao":"","escrita":{"operacao":"adicionar","id":125}}"""
+#Exemplo 5 — Fora de escopo:
+FINANCEIRO_SHOT_5 = """
 Roteador: ROUTE=financeiro
 PERGUNTA_ORIGINAL=[pergunta não relacionada a finanças ou agenda]
 Financeiro: {"dominio":"financeiro","intencao":"consultar","resposta":"Essa pergunta está fora da minha área de atuação.","recomendacao":"Posso ajudar com finanças ou agenda. O que prefere?"}"""
@@ -200,6 +210,7 @@ FINANCEIRO_PROMPT_COMPLETO = (
     FINANCEIRO_SHOT_2      + "\n\n" +
     FINANCEIRO_SHOT_3      + "\n\n" +
     FINANCEIRO_SHOT_4      + "\n\n" +
+    FINANCEIRO_SHOT_5      + "\n\n" +
     FINANCEIRO_SHOTS_CUT
 )
 # ==============================================================================
@@ -330,7 +341,7 @@ Você é o Agente Orquestrador do Assessor.AI. Sua função é entregar a respos
 - Nunca invente informações que não estejam no JSON recebido.
 - Respostas curtas e acionáveis. Sem jargões técnicos.
 - Responda sempre em português do Brasil.
-
+- Todos os valores monetários devem ser exibidos formatados em Real (R$ X,XX). Se houve conversão cambial, cite a moeda original e o valor convertido para transparência ao usuário.
 
 ### FORMATO DE RESPOSTA PARA O USUÁRIO
 - [diagnóstico em 1 frase objetiva]

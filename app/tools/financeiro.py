@@ -7,7 +7,16 @@ from app.tools.db import get_conn
 
 
 class AddTransactionArgs(BaseModel):
-    amount: float = Field(..., description="Valor da transação (use positivo).")
+    amount: float = Field(
+        ...,
+        description=(
+            "Valor da transação obrigatoriamente em Reais (BRL, R$). "
+            "O banco registra estritamente em Reais. Se a despesa ou receita for dita em moeda estrangeira "
+            "(como dólares USD, euros EUR, etc.), você DEVE converter para Reais usando a cotação estimada atual "
+            "(ex.: 1 USD ≈ R$ 5,00 a R$ 5,50) e enviar o valor final CONVERTIDO em Reais neste campo. "
+            "NUNCA passe o valor original em moeda estrangeira sem converter."
+        )
+    )
     source_text: str = Field(..., description="Texto original do usuário.")
     occurred_at: Optional[str] = Field(
         default=None,
@@ -305,7 +314,7 @@ class UpdateTransactionArgs(BaseModel):
         default=None,
         description="Data local (YYYY-MM-DD) em America/Sao_Paulo; usado em conjunto com match_text quando id ausente."
     )
-    amount: Optional[float] = Field(default=None, description="Novo valor.")
+    amount: Optional[float] = Field(default=None, description="Novo valor obrigatoriamente em Reais (BRL, R$). Converta se informado em outra moeda.")
     type_id: Optional[int] = Field(default=None, description="Novo type_id (1/2/3).")
     type_name: Optional[str] = Field(default=None, description="Novo type_name: INCOME | EXPENSES | TRANSFER.")
     category_id: Optional[int] = Field(default=None, description="Nova categoria (id).")

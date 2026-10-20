@@ -21,8 +21,10 @@ REGRAS = (
     "Esclarecimento, saudação, oferta de ajuda, sugestão de próximo passo "
     "e ausência de registro contam como apoiada. "
     "Opinião do usuário pode ser citada como fala dele. "
-    "A moeda de cada valor é a que aparece no source_text ou na fala do usuário. "
-    "Moeda trocada, valores de moedas diferentes somados num total só, "
+    "A moeda padrão do sistema é o Real (BRL / R$). "
+    "Conversões de valores de moedas estrangeiras citadas pelo usuário para Real (BRL) "
+    "com a devida identificação da moeda contam como apoiada. "
+    "Moeda trocada sem relação com a fala do usuário, valores de moedas diferentes somados sem conversão num total só, "
     "opinião dita como fato do sistema, número, data, telefone ou regra "
     "que não saiam da evidência contam como sem_apoio."
 )
@@ -102,7 +104,8 @@ def _julgar_jev(pergunta, resposta, evidencia):
             "apoiada": {
                 "type": "noul",
                 "instructions": (
-                    "Seguindo as regras, a resposta é fiel à evidência: todo valor, moeda, "
+                    "Seguindo as regras, a resposta é fiel à evidência: todo valor, moeda "
+                    "(incluindo conversão para Real de moedas citadas pelo usuário), "
                     "data e fato dela sai da evidência, da fala do usuário ou de contas sobre elas?"
                 ),
             },

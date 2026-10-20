@@ -7,10 +7,9 @@ from app.config import GEMINI_API_KEY, GROQ_API_KEY
 # =============================================================================
 
 llmGuard = ChatGroq(
-    model="openai/gpt-oss-120b",
+    model="qwen/qwen3.8-27b",
     temperature=0, 
     max_tokens=400,
-    reasoning_format="hidden",
     api_key=GROQ_API_KEY
 )
 llm_gemini = ChatGoogleGenerativeAI(
@@ -21,7 +20,7 @@ llm_gemini = ChatGoogleGenerativeAI(
 )
 
 llm_groq = ChatGroq(
-    model="openai/gpt-oss-120b",
+    model="qwen/qwen3.8-27b",
     temperature=0.7,
     top_p=0.95,
     max_tokens=400,
@@ -31,17 +30,15 @@ llm_groq = ChatGroq(
 llm = llm_gemini.with_fallbacks([llm_groq])
 
 llmRapido = ChatGroq(
-    model="openai/gpt-oss-120b",
+    model="qwen/qwen3.8-27b",
     temperature=0,
     max_tokens=900,
-    reasoning_format="hidden",
     api_key=GROQ_API_KEY,
 )
 
 _llm_resumo = ChatGroq(
-    model="openai/gpt-oss-120b",
+    model="qwen/qwen3.8-27b",
     temperature=0,
     max_tokens=400,
-    reasoning_format="hidden",
     api_key=GROQ_API_KEY
 )

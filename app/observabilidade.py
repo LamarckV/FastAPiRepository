@@ -35,6 +35,7 @@ _FUSO = ZoneInfo("America/Sao_Paulo")
 PRECO_POR_MILHAO: dict[str, tuple[float, float]] = {
     "gemini-2.5-flash": (0.30, 2.50),
     "openai/gpt-oss-120b": (0.15, 0.60),
+    "qwen/qwen3.8-27b": (0.15, 0.60),
 }
 
 # O especialista promete Gemini. Groq neste nó é o with_fallbacks de llms.py.
