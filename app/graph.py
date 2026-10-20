@@ -97,7 +97,7 @@ def no_roteador(estado: Estado) -> dict:
     texto = extract_text(saida["messages"][-1].content)
     if "ROUTE=" not in texto:
         return {
-            "agentes": estado["agentes"] + ["roteador"],
+            "agentes": estado.get("agentes", []) + ["roteador"],
             "rota": "fim",
             "messages": [{"role": "assistant", "content": texto}],
         }
@@ -109,7 +109,7 @@ def no_roteador(estado: Estado) -> dict:
             break
 
     return {
-        "agentes": estado["agentes"] + ["roteador", rota],
+        "agentes": estado.get("agentes", []) + ["roteador", rota],
         "rota": rota,
     }
 
@@ -118,17 +118,19 @@ def no_guardrail_entrada(estado: Estado) -> dict:
     pergunta_usuario = estado["messages"][-1].content
     texto_anonimizado, mapa_pii = anonimizar_entrada(pergunta_usuario)
     resposta_guardrail = guardrail_entrada(texto_anonimizado)
+    motivo = resposta_guardrail.get("motivo", "aprovado")
+    agente_guardrail = f"guardrail_entrada:{motivo}"
 
     if resposta_guardrail["bloqueado"]:
         return {
             "rota": "fim",
-            "agentes": estado["agentes"] + ["guardrail_entrada"],
+            "agentes": estado.get("agentes", []) + [agente_guardrail],
             "messages": [{"role": "assistant", "content": resposta_guardrail["mensagem"]}],
         }
     else:
         return {
             "mapa_pii": mapa_pii,
-            "agentes": estado["agentes"] + ["guardrail_entrada"],
+            "agentes": estado.get("agentes", []) + [agente_guardrail],
             "messages": [
                 RemoveMessage(id=estado["messages"][-1].id),
                 {"role": "human", "content": texto_anonimizado}
@@ -137,12 +139,12 @@ def no_guardrail_entrada(estado: Estado) -> dict:
 
 def no_guardrail_saida(estado: Estado) -> dict:
     resposta_orquestrador = extract_text(estado["messages"][-1].content)
-    mapa_pii = estado["mapa_pii"]
+    mapa_pii = estado.get("mapa_pii") or {}
     resposta_final = guardrail_saida(resposta_orquestrador, mapa_pii)
 
     return {
         "messages": [{"role": "assistant", "content": resposta_final["conteudo"]}],
-        "agentes": estado["agentes"] + ["guardrail_saida"],
+        "agentes": estado.get("agentes", []) + ["guardrail_saida"],
     }
 
 def no_orquestrador(estado: Estado, config: RunnableConfig) -> dict:
@@ -158,9 +160,10 @@ def no_orquestrador(estado: Estado, config: RunnableConfig) -> dict:
         "messages": [{"role": "human", "content": ultima_especialista}]
     }, config=config)
 
+    conteudo = extract_text(saida["messages"][-1].content)
     return {
-        "agentes_chamados": ["orquestrador"],
-        "messages":        [{"role": "assistant", "content": saida["messages"][-1].text}]
+        "agentes": estado.get("agentes", []) + ["orquestrador"],
+        "messages": [{"role": "assistant", "content": conteudo}],
     }
 
 def decidir_especialista(estado: Estado) -> str:
@@ -215,15 +218,15 @@ fluxo_agentes = grafo.compile(checkpointer=memory)
 
 def executar_fluxo_assessor(
     pergunta_usuario: str, session_id: str, user_id: str = "usuario_teste"
-) -> str:
+) -> dict:
     pergunta_usuario_anonimizado, _ = anonimizar_entrada(pergunta_usuario)
     estado_inicial = {
         "messages":         [{"role": "human", "content": pergunta_usuario}],
+        "agentes":          [],
         "agentes_chamados": [],
         "rota":             "",
         "mapa_pii":         {},
         "session_id":       session_id,
-
     }
 
     # O registro abre antes do invoke e fecha no finally, inclusive quando
@@ -237,14 +240,22 @@ def executar_fluxo_assessor(
             config={"configurable": {"thread_id": session_id, "user_id": user_id}},
         )
 
-        resposta = estado_final["messages"][-1].text
+        resposta = extract_text(estado_final["messages"][-1].content)
 
-        # Salva no MongoDB após cada interação
-        salvar_mensagem(session_id, "human",     pergunta_usuario_anonimizado, user_id=user_id)
-        salvar_mensagem(session_id, "assistant", resposta, user_id=user_id)
+        # Salva no MongoDB após cada interação (silencia falha se Mongo indisponível)
+        try:
+            salvar_mensagem(session_id, "human",     pergunta_usuario_anonimizado, user_id=user_id)
+            salvar_mensagem(session_id, "assistant", resposta, user_id=user_id)
+        except Exception as err:
+            print(f"[mongo] Erro ao salvar histórico: {err}")
 
+        agentes_finais = estado_final.get("agentes", [])
+        estado_final["agentes_chamados"] = agentes_finais
         status = status_do_estado(estado_final)
         rota = estado_final.get("rota") or ""
-        return resposta
+        return {
+            "resposta": resposta,
+            "agentes_chamados": agentes_finais,
+        }
     finally:
         fechar_turno(turno_id, session_id=session_id, rota=rota, status=status)

@@ -13,9 +13,12 @@ _mongo_client = None
 def get_col_perfil():
     global _mongo_client
     if _mongo_client is None:
-        _mongo_client = MongoClient(MONGODB_URI)
+        _mongo_client = MongoClient(MONGODB_URI, serverSelectionTimeoutMS=2000)
         col = _mongo_client["assessor"]["perfil"]
-        col.create_index("user_id", unique=True)
+        try:
+            col.create_index("user_id", unique=True)
+        except Exception as e:
+            print(f"[MongoDB Perfil Index Warning] {e}")
         return col
     return _mongo_client["assessor"]["perfil"]
 
