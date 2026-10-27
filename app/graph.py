@@ -16,6 +16,7 @@ from app.memoryMongo import salvar_mensagem
 from app.llm import llm, llmRapido
 from app.juiz import no_juiz
 from app.observabilidade import abrir_turno, fechar_turno, status_do_estado
+from app.tools.db import confirmar_transacao_turno, descartar_transacao_turno
 from app.prompts import (
     ROUTER_PROMPT_COMPLETO,
     FINANCEIRO_PROMPT_COMPLETO,
@@ -93,8 +94,8 @@ class Estado(MessagesState):
     mapa_pii: dict  # tokens -> valores originais gerados na anonimização
 
 # Nós
-def no_roteador(estado: Estado) -> dict:
-    saida = routerApp.invoke({"messages": [estado["messages"][-1]]})
+def no_roteador(estado: Estado, config: RunnableConfig) -> dict:
+    saida = routerApp.invoke({"messages": [estado["messages"][-1]]}, config=config)
     texto = extract_text(saida["messages"][-1].content)
     if "ROUTE=" not in texto:
         return {
@@ -213,7 +214,6 @@ grafo.add_edge("orquestrador",    "guardrail_saida")
 grafo.add_edge("guardrail_saida", "juiz")
 grafo.add_edge("faq",             "juiz")
 grafo.add_edge("juiz",            END)
-
 memory = MemorySaver()
 fluxo_agentes = grafo.compile(checkpointer=memory)
 
@@ -231,7 +231,6 @@ def executar_fluxo_assessor(
         "mapa_pii":         {},
         "session_id":       session_id,
     }
-
     # O registro abre antes do invoke e fecha no finally, inclusive quando
     # o grafo levanta. A rota /monitor só lê o que ficou anotado.
     turno_id = abrir_turno()
@@ -242,6 +241,19 @@ def executar_fluxo_assessor(
             estado_inicial,
             config={"configurable": {"thread_id": session_id, "user_id": user_id}},
         )
+
+        # Inspeciona os rótulos do juiz no estado final
+        agentes = estado_final.get("agentes_chamados") or estado_final.get("agentes") or []
+        veredito_aprovado = any(
+            isinstance(a, str) and a.startswith("juiz:apoiada") and not a.startswith("juiz:apoiada:abaixo_do_limiar")
+            for a in agentes
+        )
+
+        if veredito_aprovado:
+            confirmar_transacao_turno()
+        else:
+            # Qualquer recusa (sem_apoio, abaixo_do_limiar, erro, timeout) descarta
+            descartar_transacao_turno()
 
         resposta = extract_text(estado_final["messages"][-1].content)
 
@@ -260,5 +272,10 @@ def executar_fluxo_assessor(
             "resposta": resposta,
             "agentes_chamados": agentes_finais,
         }
+    except Exception as err:
+        descartar_transacao_turno()
+        raise err
     finally:
+        # Garante que nenhuma conexão fique pendente em caso de exceção imprevista
+        descartar_transacao_turno()
         fechar_turno(turno_id, session_id=session_id, rota=rota, status=status)

@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 
 # A conexão com o Postgres agora vem de um lugar só (antes era uma get_conn()
 # local, idêntica à de financeiro.py).
-from app.tools.db import get_conn
+from app.tools.db import get_conn, obter_conexao_escrita
 
 
 class AddEventArgs(BaseModel):
@@ -29,7 +29,7 @@ def add_event(
     notes: Optional[str] = None,
 ) -> dict:
     """Insere um evento/compromisso na agenda (tabela events) do banco de dados Postgres."""
-    conn = get_conn()
+    conn = obter_conexao_escrita()
     cur = conn.cursor()
     try:
         cur.execute(
@@ -43,7 +43,7 @@ def add_event(
             (title, start_time, end_time, location, notes, source_text),
         )
         new_id, start, end = cur.fetchone()
-        conn.commit()
+        # Não comita nem fecha a conexão aqui (espera a decisão do juiz)
         return {
             "status": "ok",
             "id": new_id,
@@ -52,15 +52,12 @@ def add_event(
             "end_time": str(end) if end else None,
         }
     except Exception as e:
-        conn.rollback()
         return {"status": "error", "message": str(e)}
     finally:
         try:
             cur.close()
-            conn.close()
         except Exception:
             pass
-
 
 #############
 # NOVA TOOL #

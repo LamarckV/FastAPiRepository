@@ -2,7 +2,7 @@ from typing import List, Optional
 from langchain.tools import tool
 from pydantic import BaseModel, Field
 import unicodedata
-from app.tools.db import get_conn
+from app.tools.db import get_conn, obter_conexao_escrita
 
 
 
@@ -217,7 +217,7 @@ def add_transaction(
     payment_method: Optional[str] = None,
 ) -> dict:
     """Insere uma transação financeira no banco de dados Postgres.""" 
-    conn = get_conn()
+    conn = obter_conexao_escrita()
     cur = conn.cursor()
     try:
         resolved_type_id = _resolve_type_id(cur, type_id, type_name)
@@ -250,16 +250,14 @@ def add_transaction(
             )
 
         new_id, occurred = cur.fetchone()
-        conn.commit()
+        # Não comita nem fecha a conexão aqui (espera a decisão do juiz)
         return {"status": "ok", "id": new_id, "occurred_at": str(occurred)}
 
     except Exception as e:
-        conn.rollback()
         return {"status": "error", "message": str(e)}
     finally:
         try:
             cur.close()
-            conn.close()
         except Exception:
             pass
 
@@ -348,7 +346,7 @@ def update_transaction(
     if not any([amount, type_id, type_name, category_id, category_name, description, payment_method, occurred_at]):
         return {"status": "error", "message": "Nada para atualizar: forneça pelo menos um campo (amount, type, category, description, payment_method, occurred_at)."}
 
-    conn = get_conn()
+    conn = obter_conexao_escrita()
     cur = conn.cursor()
     try:
         # Resolve target_id
@@ -376,9 +374,7 @@ def update_transaction(
 
         # Resolver type_id / category_id a partir de nomes, se fornecidos
         resolved_type_id = _resolve_type_id(cur, type_id, type_name) if (type_id or type_name) else None
-        resolved_category_id = category_id
-        if category_name and not category_id:
-            resolved_category_id = _resolve_category_id(cur, category_name)
+        resolved_category_id = _resolve_category_id(cur, category_id, category_name)
 
         # Montar SET dinâmico
         sets = []
@@ -412,7 +408,6 @@ def update_transaction(
             params
         )
         rows_affected = cur.rowcount
-        conn.commit()
 
         # Retornar o registro atualizado
         cur.execute(
@@ -441,6 +436,7 @@ def update_transaction(
                 "source_text": r[7],
             }
 
+        # Não comita nem fecha a conexão aqui (espera a decisão do juiz)
         return {
             "status": "ok",
             "rows_affected": rows_affected,
@@ -449,12 +445,10 @@ def update_transaction(
         }
 
     except Exception as e:
-        conn.rollback()
         return {"status": "error", "message": str(e)}
     finally:
         try:
             cur.close()
-            conn.close()
         except Exception:
             pass
 

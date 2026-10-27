@@ -70,19 +70,23 @@ def _coleta(estado):
     return pergunta, resposta, evidencia[-6000:]
 
 
-def _publicar(texto, rotulo, resposta_original):
+def _publicar(texto, rotulo, resposta_original, aprovado: bool = False, estado: dict = None):
     print(f"[juiz] {rotulo}")
-    if texto.strip() == (resposta_original or "").strip():
-        return {"agentes_chamados": [f"juiz:{rotulo}"]}
-    return {
-        "messages": [{"role": "assistant", "content": texto.strip()}],
+    agentes_anteriores = estado.get("agentes", []) if isinstance(estado, dict) else []
+    resultado = {
+        "juiz_aprovado": aprovado,
+        "juiz_rotulo": rotulo,
+        "agentes": agentes_anteriores + [f"juiz:{rotulo}"],
         "agentes_chamados": [f"juiz:{rotulo}"],
     }
+    if texto.strip() != (resposta_original or "").strip():
+        resultado["messages"] = [{"role": "assistant", "content": texto.strip()}]
+    return resultado
 
 
-def _julgar_jev(pergunta, resposta, evidencia):
+def _julgar_jev(pergunta, resposta, evidencia, estado: dict = None):
     if not TYPESAFE_API_KEY:
-        return _publicar(FRASE_SEGURA, "sem_chave", resposta)
+        return _publicar(FRASE_SEGURA, "sem_chave", resposta, aprovado=False, estado=estado)
     corpo = json.dumps({
         "model": JEV_MODELO,
         "state": {
@@ -124,22 +128,27 @@ def _julgar_jev(pergunta, resposta, evidencia):
         with urllib.request.urlopen(pedido, timeout=30) as resp:
             dados = json.loads(resp.read().decode())
     except urllib.error.HTTPError as exc:
-        return _publicar(FRASE_SEGURA, f"erro http {exc.code}", resposta)
+        return _publicar(FRASE_SEGURA, f"erro http {exc.code}", resposta, aprovado=False, estado=estado)
     respostas = dados["answers"]
     choice = respostas["veredito"]["choice"]
     noul = float(respostas["apoiada"]["noul"])
     if choice == "apoiada" and noul >= LIMIAR:
-        return _publicar(resposta, f"apoiada noul={noul:.2f}", resposta)
+        return _publicar(resposta, f"apoiada noul={noul:.2f}", resposta, aprovado=True, estado=estado)
     rotulo = "apoiada:abaixo_do_limiar" if choice == "apoiada" else choice
-    return _publicar(FRASE_SEGURA, f"{rotulo} noul={noul:.2f}", resposta)
+    return _publicar(FRASE_SEGURA, f"{rotulo} noul={noul:.2f}", resposta, aprovado=False, estado=estado)
 
 
 def no_juiz(estado: dict) -> dict:
     pergunta, resposta, evidencia = _coleta(estado)
     if not resposta:
-        return {"agentes_chamados": ["juiz:sem_resposta"]}
+        return {
+            "juiz_aprovado": False,
+            "juiz_rotulo": "sem_resposta",
+            "agentes": estado.get("agentes", []) + ["juiz:sem_resposta"],
+            "agentes_chamados": ["juiz:sem_resposta"],
+        }
     try:
-        return _julgar_jev(pergunta, resposta, evidencia)
+        return _julgar_jev(pergunta, resposta, evidencia, estado=estado)
     except Exception as exc:
         print(f"[juiz] erro {exc}")
-        return _publicar(FRASE_SEGURA, "erro", resposta) 
+        return _publicar(FRASE_SEGURA, "erro", resposta, aprovado=False, estado=estado)
